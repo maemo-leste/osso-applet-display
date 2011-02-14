@@ -1,0 +1,26 @@
+#!/bin/sh
+
+if [ -x "/etc/init.d/osso-applet-display" ]; then
+	        update-rc.d osso-applet-display start 20 2 5 . >/dev/null || exit $?
+fi
+
+echo  updating schemas
+
+OSSO_PRODUCT_HARDWARE='RX-34'
+
+[ -x /usr/bin/osso-product-info ] && eval `/usr/bin/osso-product-info`
+
+case "$OSSO_PRODUCT_HARDWARE" in
+        RX-34)
+                cp /usr/share/osso-applet-display/RX-34.schemas /etc/gconf/schemas/osso-applet-display.schemas
+                ;;
+        RX-44)
+                cp /usr/share/osso-applet-display/RX-44.schemas /etc/gconf/schemas/osso-applet-display.schemas
+                ;;
+	*)
+                cp /usr/share/osso-applet-display/RX-51.schemas /etc/gconf/schemas/osso-applet-display.schemas
+                ;;
+	
+esac
+
+GCONF_CONFIG_SOURCE="xml:merged:/etc/gconf/gconf.xml.defaults" gconftool-2 --makefile-install-rule /etc/gconf/schemas/osso-applet-display.schemas >&1 > /dev/null

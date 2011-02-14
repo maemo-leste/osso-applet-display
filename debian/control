@@ -1,0 +1,32 @@
+Source: osso-applet-display
+Priority: extra
+Maintainer: Nicolai Hess <nicolaihess@web.de>
+Build-Depends: debhelper (>= 5), libgtk2.0-dev, libhildon1-dev, libhildondesktop1-dev, hildon-control-panel-dev, libgconf2-dev
+Standards-Version: 3.7.2
+Section: libs
+
+Package: osso-applet-display
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, hildon-control-panel (>= 1:2.2.1), osso-icons | osso-icons-devel, osso-display-l10n-mr0 | osso-display-l10n-mr
+Description: Control Panel Display plugin
+ An applet for hildon control panel that allows the user to change display
+ settings like brightness and dimming itervals.
+XB-Maemo-Display-Name:Notification Light Setting
+XSBC-Bugtracker: mailto:nicolaihess@web.de
+XB-Maemo-Icon-26:
+ iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0
+ d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAjlJREFUeNrsmL1qwlAUx0/S
+ 4Efp4tJJ0MWtINKtSws+QIe+QKf6AH0OHd1dOxUcRWmXFjdrFhHRyS9QVAxq
+ 1GjvCaSoNVFD0tzQe+DiNR/6/537T+49l1uv1+Dm4MHlwQAYAANgAAyAAbg6
+ hN0DHMdBPp+/Jd07yrS+xePxd+xsLn+43bVQoVC4r1arr8ViEebzORXKPR4P
+ RCIRaDabj+l0OrOp+dcI9Hq951wuB6VSCWazGQiCAOFwGILB4M81eLxSqcBw
+ OPwTAJ/PB/1+HxRFeSJfM4YW6na7551ORxWJsVwuoVarARm+reui0aj6iaM0
+ GAx0/5z8nqlzrVZL1TCdTjGpqrVDoZCXnLogTdIF0ItEIrH3uCRJUK/Xde8T
+ RVH3XLlcNgRAQJL10x5iJ2O1WqkjipkfjUYHxVMDgMJlWVaFn1pgOQqAGUaP
+ LxYLMFsZCk5mHG1i+URmZ+AbDT1+jLepAkCLYLNS+J8AoGB8zdq582E5AIpF
+ 4diwb/e2jWC1cPS5o6tRM8Lt8retAJo9NLtQUw8cIxzf49QWNEaTD437qAcB
+ JpMJjMdjoHUTeC8Az/OqaBSv+TuZTO79AZxZsdjQi3a7bbhkNkqcWQDZ6/WC
+ 3+9XIbRIpVKOZTkQCGAxcxxANpv9JDfcxGIx6uzSaDQ+cILf2oTY9TYp3a4I
+ wAOpQ69pEk+W3SKpwV9I98twVwJrTxKXpJ1RNgCYeXzYFEMAtwXbWmQADIAB
+ MAAGwAAYwH8G+BZgAF75RMBicoSZAAAAAElFTkSuQmCC
+ ====

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=disp_ti_display
+Comment=Change the display settings
+Type=HildonControlPanelPlugin
+Icon=general_brightness
+X-Text-Domain=osso-display
+X-control-panel-plugin=libcpdisplay.so
+Categories=personalisation
