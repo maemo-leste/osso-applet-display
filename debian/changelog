@@ -1,3 +1,9 @@
+osso-applet-display (1.5.4+0cssu1) unstable; urgency=medium
+
+  * enable git builds
+
+ -- Ivan J. <parazyd@dyne.org>  Thu, 14 Sep 2017 22:27:00 +0200
+
 osso-applet-display (1.5.4+0cssu1) unstable; urgency=low
 
   * Initial Release.
