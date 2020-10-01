@@ -5,4 +5,4 @@ if [ "$1" = remove ] || [ "$1" = upgrade ]; then
 		GCONF_CONFIG_SOURCE="xml:merged:/etc/gconf/gconf.xml.defaults" gconftool-2 --makefile-uninstall-rule /etc/gconf/schemas/osso-applet-display.schemas > /dev/null
 		rm /etc/gconf/schemas/osso-applet-display.schemas
 	fi
-fi 
+fi
