@@ -1,3 +1,9 @@
+osso-applet-display (1.5.5) unstable; urgency=medium
+
+  * Port initscript to OpenRC and clean up.
+
+ -- Ivan J. <parazyd@dyne.org>  Thu, 01 Oct 2020 18:10:34 +0200
+
 osso-applet-display (1.5.4+0cssu1) unstable; urgency=medium
 
   * enable git builds
