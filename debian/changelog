@@ -1,3 +1,10 @@
+osso-applet-display (1.5.7) unstable; urgency=medium
+
+  * schemas: Add 0 as a possible timeout value.
+  * Remove debian/prerm.
+
+ -- Ivan J. <parazyd@dyne.org>  Sat, 19 Jun 2021 16:53:05 +0200
+
 osso-applet-display (1.5.6) unstable; urgency=medium
 
   * Install schemas through the package rather than an initscript.
