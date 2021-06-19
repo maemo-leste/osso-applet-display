@@ -67,7 +67,7 @@
       <owner>osso-applet-display</owner>
       <type>list</type>
       <list_type>int</list_type>
-      <default>[10, 30, 60, 120]</default>
+      <default>[0, 10, 30, 60, 120]</default>
       <locale name="C">
         <short>Possible timeouts for display dimming</short>
 	<long>This key contains the allowed values for display dimming timeout.
@@ -80,7 +80,7 @@
       <owner>osso-applet-display</owner>
       <type>list</type>
       <list_type>int</list_type>
-      <default>[30, 60, 120, 300]</default>
+      <default>[0, 30, 60, 120, 300]</default>
       <locale name="C">
         <short>Possible timeouts for display blanking</short>
 	<long>This key contains the allowed values for display blanking timeout.
