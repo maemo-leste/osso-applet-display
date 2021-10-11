@@ -90,8 +90,7 @@ osso_return_t execute(osso_context_t* osso, gpointer user_data, gboolean user_ac
 									  HILDON_BUTTON_ARRANGEMENT_VERTICAL);
   
   GtkWidget* touchscreen_keypad_autolock_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);  
-  GtkWidget* inhibit_blank_mode_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);  
-  GtkWidget* touchscreen_vibra_check_button  = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
+  GtkWidget* inhibit_blank_mode_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
   GtkWidget* power_saving_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
   GtkWidget* dim_timeout_selector = hildon_touch_selector_new_text();
   gint current_brightness = gconf_client_get_int(gconf_client, GCONF_KEY_DISPLAY_BRIGHTNESS, NULL);
@@ -112,8 +111,6 @@ osso_return_t execute(osso_context_t* osso, gpointer user_data, gboolean user_ac
 		       dgettext("osso-display", "disp_fi_lock_screen"));
   gtk_button_set_label(GTK_BUTTON(inhibit_blank_mode_check_button),
 		       dgettext("osso-display", "disp_fi_display_stays_on"));
-  gtk_button_set_label(GTK_BUTTON(touchscreen_vibra_check_button), 
-		       dgettext("osso-display", "disp_fi_touchscreen_vibration"));
   gtk_button_set_label(GTK_BUTTON(power_saving_check_button),
 		       dgettext("osso-display", "disp_fi_power_save_mode"));
   
@@ -121,8 +118,6 @@ osso_return_t execute(osso_context_t* osso, gpointer user_data, gboolean user_ac
 				 gconf_client_get_bool(gconf_client, GCONF_KEY_TOUCHSCREEN_AUTOLCOK, NULL));
   hildon_check_button_set_active(HILDON_CHECK_BUTTON(inhibit_blank_mode_check_button),
 				 gconf_client_get_int(gconf_client, GCONF_KEY_INHIBIT_BLANK_MODE, NULL));
-  hildon_check_button_set_active(HILDON_CHECK_BUTTON(touchscreen_vibra_check_button),
-				 gconf_client_get_bool(gconf_client, GCONF_KEY_TOUCHSCREEN_VIBRA, NULL));
   hildon_check_button_set_active(HILDON_CHECK_BUTTON(power_saving_check_button),
 				 gconf_client_get_bool(gconf_client, GCONF_KEY_POWER_SAVING, NULL));
 
@@ -170,7 +165,6 @@ osso_return_t execute(osso_context_t* osso, gpointer user_data, gboolean user_ac
   gtk_box_pack_start(GTK_BOX(box), display_dim_timeout_picker_button, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(box), touchscreen_keypad_autolock_check_button, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(box), inhibit_blank_mode_check_button, TRUE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(box), touchscreen_vibra_check_button, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(box), power_saving_check_button, TRUE, FALSE, 0);
 
   // another box, so, the widgets arent scatterd over the
@@ -213,10 +207,6 @@ osso_return_t execute(osso_context_t* osso, gpointer user_data, gboolean user_ac
 			 hildon_check_button_get_active(HILDON_CHECK_BUTTON(inhibit_blank_mode_check_button)),
 			 NULL);
     gconf_client_set_bool(gconf_client,
-			  GCONF_KEY_TOUCHSCREEN_VIBRA,
-			  hildon_check_button_get_active(HILDON_CHECK_BUTTON(touchscreen_vibra_check_button)),
-			  NULL);
-    gconf_client_set_bool(gconf_client,
 			  GCONF_KEY_POWER_SAVING,
 			  hildon_check_button_get_active(HILDON_CHECK_BUTTON(power_saving_check_button)),
 			  NULL);
@@ -230,7 +220,6 @@ osso_return_t execute(osso_context_t* osso, gpointer user_data, gboolean user_ac
 			   GCONF_KEY_DIM_TIMEOUT,
 			   value,
 			   NULL);
-			 
     }
   }
   else
