@@ -1,6 +1,7 @@
 /*
  *  display control panel plugin
  *  Copyright (C) 2011 Nicolai Hess
+ *  Copyright (C) 2021 Carl Klemm
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,38 +23,115 @@
 #include <libintl.h>
 #include <string.h>
 #include <locale.h>
+#include <mce/dbus-names.h>
 #include <gconf/gconf-client.h>
 #include <gdk/gdkx.h>
 
-#define GCONF_KEY_DISPLAY    "/system/osso/dsm/display/"
-#define GCONF_KEY_POWER_SAVING           GCONF_KEY_DISPLAY "enable_power_saving"
-#define GCONF_KEY_INHIBIT_BLANK_MODE  GCONF_KEY_DISPLAY "inhibit_blank_mode"
-#define GCONF_KEY_DIM_TIMEOUTS GCONF_KEY_DISPLAY "possible_display_dim_timeouts"
-#define GCONF_KEY_DIM_TIMEOUT GCONF_KEY_DISPLAY "display_dim_timeout"
-#define GCONF_KEY_DISPLAY_BRIGHTNESS GCONF_KEY_DISPLAY "display_brightness"
-#define GCONF_KEY_DISPLAY_BRIGHTNESS_MAX GCONF_KEY_DISPLAY "max_display_brightness_levels"
-#define GCONF_KEY_TOUCHSCREEN_VIBRA   "/system/osso/dsm/vibra/touchscreen_vibra_enabled"
 #define GCONF_KEY_TOUCHSCREEN_AUTOLCOK "/system/osso/dsm/locks/touchscreen_keypad_autolock_enabled"
+#define GCONF_KEY_DIM_TIMEOUTS "/system/osso/dsm/display/possible_display_dim_timeouts"
 
 #ifdef HILDON_DISABLE_DEPRECATED
 #undef HILDON_DISABLE_DEPRECATED
 #endif
 
-static void _brightness_level_changed(HildonControlbar *brightness_control_bar, gpointer user_data)
+static GDBusConnection *get_dbus_connection(void)
 {
-	GConfClient *gconf_client = GCONF_CLIENT(user_data);
-	gconf_client_set_int(gconf_client,
-			     GCONF_KEY_DISPLAY_BRIGHTNESS, hildon_controlbar_get_value(brightness_control_bar), NULL);
+	GError *error = NULL;
+	char *addr;
+	
+	GDBusConnection *s_bus_conn;
+
+	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (addr == NULL) {
+		g_error("fail to get dbus addr: %s\n", error->message);
+		g_free(error);
+		return NULL;
+	}
+
+	s_bus_conn = g_dbus_connection_new_for_address_sync(addr,
+			G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+			G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+			NULL, NULL, &error);
+
+	if (s_bus_conn == NULL) {
+		g_error("fail to create dbus connection: %s\n", error->message);
+		g_free(error);
+	}
+
+	return s_bus_conn;
+}
+
+static gint32 mce_get_dbus_int(GDBusConnection *bus, const gchar *request, gint32 defval)
+{
+	GVariant *result;
+
+	GError *error = NULL;
+
+	result = g_dbus_connection_call_sync(bus, MCE_SERVICE, MCE_REQUEST_PATH,
+		MCE_REQUEST_IF, request, NULL, NULL,
+		G_DBUS_CALL_FLAGS_NONE, 2000, NULL, &error);
+	
+	if (error || !result) {
+		g_critical("%s: Can not get value for %s", __func__, request);
+		return defval;
+	}
+
+	GVariantType *int_variant = g_variant_type_new("(i)");
+
+	if (!g_variant_is_of_type(result, int_variant)) {
+		g_critical("%s: Can not get value for %s wrong type: %s instead of (i)",
+				   __func__, request, g_variant_get_type_string(result));
+		g_variant_unref(result);
+		g_variant_type_free(int_variant);
+		return defval;
+	}
+
+	g_variant_type_free(int_variant);
+
+	gint32 value;
+	g_variant_get(result, "(i)", &value);
+	g_variant_unref(result);
+	return value;
+}
+
+static gboolean mce_set_dbus_int(GDBusConnection *bus, const gchar *request, gint32 val)
+{
+	GVariant *result;
+	GVariant *param = g_variant_new("(i)", val);
+
+	GError *error = NULL;
+
+	result = g_dbus_connection_call_sync(bus, MCE_SERVICE, MCE_REQUEST_PATH,
+		MCE_REQUEST_IF, request, param, NULL,
+		G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+
+	g_variant_unref(param);
+	
+	if (error) {
+		g_critical("%s: Failed to send %s to mce", __func__, request);
+		return FALSE;
+	}
+
+	g_variant_unref(result);
+
+	return TRUE;
+}
+
+static void _brightness_level_changed(HildonControlbar* brightness_control_bar, gpointer user_data)
+{
+  GDBusConnection *bus = (GDBusConnection*)user_data;
+  mce_set_dbus_int(bus, MCE_DISPLAY_BRIGTNESS_SET, hildon_controlbar_get_value(brightness_control_bar));
 }
 
 static void _size_changed(GdkScreen *screen, gpointer user_data)
 {
 	GdkGeometry geometry;
-	if (gdk_screen_get_width(gdk_display_get_default_screen(gdk_display_get_default())) < 800) {
-		geometry.min_height = 680;
+	if (gdk_screen_get_width(gdk_display_get_default_screen(gdk_display_get_default())) < 
+		gdk_screen_get_height(gdk_display_get_default_screen(gdk_display_get_default()))) {
+		geometry.min_height = 500;
 		geometry.min_width = 480;
 	} else {
-		geometry.min_height = 360;
+		geometry.min_height = 320;
 		geometry.min_width = 800;
 	}
 	gtk_window_set_geometry_hints(GTK_WINDOW(user_data), GTK_WIDGET(user_data), &geometry, GDK_HINT_MIN_SIZE);
@@ -66,7 +144,10 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 							GTK_DIALOG_MODAL | GTK_DIALOG_NO_SEPARATOR,
 							dgettext("hildon-libs", "wdgt_bd_save"), GTK_RESPONSE_ACCEPT,
 							NULL);
-	GConfClient *gconf_client = gconf_client_get_default();
+	GDBusConnection *s_bus = get_dbus_connection();
+	g_assert(s_bus);
+	
+	GConfClient* gconf_client = gconf_client_get_default();
 	g_assert(GCONF_IS_CLIENT(gconf_client));
 
 	GtkWidget *pan = hildon_pannable_area_new();
@@ -80,9 +161,11 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 
 	GtkWidget *touchscreen_keypad_autolock_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
 	GtkWidget *inhibit_blank_mode_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
-	GtkWidget *power_saving_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
+    // TODO: reinstate with new mce interface when it lands
+    // https://github.com/maemo-leste/mce/issues/27
+	//GtkWidget *power_saving_check_button = hildon_check_button_new(HILDON_SIZE_FINGER_HEIGHT);
 	GtkWidget *dim_timeout_selector = hildon_touch_selector_new_text();
-	gint current_brightness = gconf_client_get_int(gconf_client, GCONF_KEY_DISPLAY_BRIGHTNESS, NULL);
+	gint current_brightness = mce_get_dbus_int(s_bus, MCE_DISPLAY_BRIGTNESS_GET, 1);
 	hildon_gtk_widget_set_theme_size(GTK_WIDGET(brightness_control_bar),
 					 HILDON_SIZE_FINGER_HEIGHT | HILDON_SIZE_AUTO_WIDTH);
 	g_object_set(pan, "hscrollbar-policy", GTK_POLICY_NEVER, NULL);
@@ -98,22 +181,21 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 			     dgettext("osso-display", "disp_fi_lock_screen"));
 	gtk_button_set_label(GTK_BUTTON(inhibit_blank_mode_check_button),
 			     dgettext("osso-display", "disp_fi_display_stays_on"));
-	gtk_button_set_label(GTK_BUTTON(power_saving_check_button),
-			     dgettext("osso-display", "disp_fi_power_save_mode"));
+	//gtk_button_set_label(GTK_BUTTON(power_saving_check_button),
+	//		     dgettext("osso-display", "disp_fi_power_save_mode"));
 
 	hildon_check_button_set_active(HILDON_CHECK_BUTTON(touchscreen_keypad_autolock_check_button),
 				       gconf_client_get_bool(gconf_client, GCONF_KEY_TOUCHSCREEN_AUTOLCOK, NULL));
 	hildon_check_button_set_active(HILDON_CHECK_BUTTON(inhibit_blank_mode_check_button),
-				       gconf_client_get_int(gconf_client, GCONF_KEY_INHIBIT_BLANK_MODE, NULL));
-	hildon_check_button_set_active(HILDON_CHECK_BUTTON(power_saving_check_button),
-				       gconf_client_get_bool(gconf_client, GCONF_KEY_POWER_SAVING, NULL));
+				       mce_get_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_MODE_GET, 0));
+	//hildon_check_button_set_active(HILDON_CHECK_BUTTON(power_saving_check_button),
+	//			       gconf_client_get_bool(gconf_client, GCONF_KEY_POWER_SAVING, NULL));
 
-	hildon_controlbar_set_range(HILDON_CONTROLBAR(brightness_control_bar),
-				    1, gconf_client_get_int(gconf_client, GCONF_KEY_DISPLAY_BRIGHTNESS_MAX, NULL));
+	hildon_controlbar_set_range(HILDON_CONTROLBAR(brightness_control_bar), 1, 5);
 
 	hildon_controlbar_set_value(HILDON_CONTROLBAR(brightness_control_bar), current_brightness);
 
-	int timeout = gconf_client_get_int(gconf_client, GCONF_KEY_DIM_TIMEOUT, NULL);
+	int timeout =  mce_get_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_GET, 0);
 	GSList *timeouts = gconf_client_get_list(gconf_client, GCONF_KEY_DIM_TIMEOUTS, GCONF_VALUE_INT, NULL);
 	if (timeouts) {
 		GSList *item = timeouts;
@@ -147,7 +229,7 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 	gtk_box_pack_start(GTK_BOX(box), display_dim_timeout_picker_button, TRUE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(box), touchscreen_keypad_autolock_check_button, TRUE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(box), inhibit_blank_mode_check_button, TRUE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(box), power_saving_check_button, TRUE, FALSE, 0);
+	//gtk_box_pack_start(GTK_BOX(box), power_saving_check_button, TRUE, FALSE, 0);
 
 	// another box, so, the widgets arent scatterd over the
 	// whole dialog  
@@ -156,18 +238,10 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 	hildon_pannable_area_add_with_viewport(HILDON_PANNABLE_AREA(pan), box_box);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), pan, TRUE, TRUE, 0);
 
-	GdkGeometry geometry;
-	if (gdk_screen_get_width(gdk_display_get_default_screen(gdk_display_get_default())) < 800) {
-		geometry.min_height = 680;
-		geometry.min_width = 480;
-	} else {
-		geometry.min_height = 360;
-		geometry.min_width = 800;
-	}
-	gtk_window_set_geometry_hints(GTK_WINDOW(dialog), dialog, &geometry, GDK_HINT_MIN_SIZE);
+	_size_changed(NULL, GTK_WINDOW(dialog));
 	g_signal_connect(gdk_display_get_default_screen(gdk_display_get_default()),
 			 "size-changed", G_CALLBACK(_size_changed), dialog);
-	g_signal_connect(brightness_control_bar, "value-changed", G_CALLBACK(_brightness_level_changed), gconf_client);
+	g_signal_connect(brightness_control_bar, "value-changed", G_CALLBACK(_brightness_level_changed), s_bus);
 	gtk_widget_show_all(dialog);
 	guint response = gtk_dialog_run(GTK_DIALOG(dialog));
 
@@ -176,28 +250,28 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 				      GCONF_KEY_TOUCHSCREEN_AUTOLCOK,
 				      hildon_check_button_get_active(HILDON_CHECK_BUTTON
 								     (touchscreen_keypad_autolock_check_button)), NULL);
-		gconf_client_set_int(gconf_client, GCONF_KEY_INHIBIT_BLANK_MODE,
-				     hildon_check_button_get_active(HILDON_CHECK_BUTTON
-								    (inhibit_blank_mode_check_button)), NULL);
-		gconf_client_set_bool(gconf_client, GCONF_KEY_POWER_SAVING,
-				      hildon_check_button_get_active(HILDON_CHECK_BUTTON(power_saving_check_button)),
-				      NULL);
+		mce_set_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_MODE_SET,
+						 hildon_check_button_get_active(HILDON_CHECK_BUTTON(inhibit_blank_mode_check_button)));
+		//gconf_client_set_bool(gconf_client, GCONF_KEY_POWER_SAVING,
+		//		      hildon_check_button_get_active(HILDON_CHECK_BUTTON(power_saving_check_button)),
+		//		      NULL);
 
 		int active_dim_timeout_index =
 		    hildon_touch_selector_get_active(HILDON_TOUCH_SELECTOR(dim_timeout_selector), 0);
 		GSList *active_item = g_slist_nth(timeouts, active_dim_timeout_index);
 		if (active_item) {
 			int value = GPOINTER_TO_INT(active_item->data);
-			gconf_client_set_int(gconf_client, GCONF_KEY_DIM_TIMEOUT, value, NULL);
+			mce_set_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_SET, value);
 		}
 	} else {
 		if (hildon_controlbar_get_value(HILDON_CONTROLBAR(brightness_control_bar)) != current_brightness)
-			gconf_client_set_int(gconf_client, GCONF_KEY_DISPLAY_BRIGHTNESS, current_brightness, NULL);
+			mce_set_dbus_int(s_bus, MCE_DISPLAY_BRIGTNESS_SET, current_brightness);
 	}
 	if (timeouts)
 		g_slist_free(timeouts);
 	gtk_widget_destroy(dialog);
 	g_object_unref(gconf_client);
+	g_object_unref(s_bus);
 	return OSSO_OK;
 }
 
