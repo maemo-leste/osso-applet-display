@@ -1,7 +1,7 @@
 Source: osso-applet-display
 Priority: extra
-Maintainer: Nicolai Hess <nicolaihess@web.de>
-Build-Depends: debhelper (>= 5), libgtk2.0-dev, libhildon1-dev, libhildondesktop1-dev, hildon-control-panel-dev, libgconf2-dev, libosso-dev
+Maintainer: Carl Klemm <carl@uvos.xyz>
+Build-Depends: debhelper (>= 5), mce-dev, libgtk2.0-dev, libhildon1-dev, libhildondesktop1-dev, hildon-control-panel-dev, libgconf2-dev, libosso-dev
 Standards-Version: 3.7.2
 Section: libs
 
@@ -12,7 +12,6 @@ Description: Control Panel Display plugin
  An applet for hildon control panel that allows the user to change display
  settings like brightness and dimming itervals.
 XB-Maemo-Display-Name:Notification Light Setting
-XSBC-Bugtracker: mailto:nicolaihess@web.de
 XB-Maemo-Icon-26:
  iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0
  d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAjlJREFUeNrsmL1qwlAUx0/S
