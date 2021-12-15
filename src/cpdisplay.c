@@ -97,16 +97,12 @@ static gint32 mce_get_dbus_int(GDBusConnection *bus, const gchar *request, gint3
 static gboolean mce_set_dbus_int(GDBusConnection *bus, const gchar *request, gint32 val)
 {
 	GVariant *result;
-	GVariant *param = g_variant_new("(i)", val);
-
 	GError *error = NULL;
 
 	result = g_dbus_connection_call_sync(bus, MCE_SERVICE, MCE_REQUEST_PATH,
-		MCE_REQUEST_IF, request, param, NULL,
+		MCE_REQUEST_IF, request, g_variant_new("(i)", val), NULL,
 		G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
 
-	g_variant_unref(param);
-	
 	if (error) {
 		g_critical("%s: Failed to send %s to mce", __func__, request);
 		return FALSE;
