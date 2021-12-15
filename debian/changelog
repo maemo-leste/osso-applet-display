@@ -1,3 +1,10 @@
+osso-applet-display (1.6.1) unstable; urgency=medium
+
+  * Fix use-after-free
+  * Fix build flags
+
+ -- Ivaylo Dimitrov <ivo.g.dimitrov.75@gmail.com>  Wed, 15 Dec 2021 20:33:24 +0200
+
 osso-applet-display (1.6.0) unstable; urgency=medium
 
   * Port to new mce interfaces
