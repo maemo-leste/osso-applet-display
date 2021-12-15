@@ -9,10 +9,10 @@ CC=gcc
 all:$(LIB)
 
 $(LIB):$(OBJS)
-	$(CC) $(CCFLAGS) $(PKG_FLAGS) $(OBJS) -o $(LIB)
+	$(CC) $(CCFLAGS) $(LDFLAGS) $(PKG_FLAGS) $(OBJS) -o $(LIB)
 
 .c.o:
-	$(CC) -fPIC $(CCFLAGS) $(PKG_FLAGS) -c $< -o $@
+	$(CC) -fPIC $(CCFLAGS) $(CFLAGS) $(PKG_FLAGS) -c $< -o $@
 
 .PHONE: clean all
 
