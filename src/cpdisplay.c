@@ -24,11 +24,7 @@
 #include <string.h>
 #include <locale.h>
 #include <mce/dbus-names.h>
-#include <gconf/gconf-client.h>
 #include <gdk/gdkx.h>
-
-#define GCONF_KEY_TOUCHSCREEN_AUTOLCOK "/system/osso/dsm/locks/touchscreen_keypad_autolock_enabled"
-#define GCONF_KEY_DIM_TIMEOUTS "/system/osso/dsm/display/possible_display_dim_timeouts"
 
 #ifdef HILDON_DISABLE_DEPRECATED
 #undef HILDON_DISABLE_DEPRECATED
@@ -113,6 +109,58 @@ static gboolean mce_set_dbus_int(GDBusConnection *bus, const gchar *request, gin
 	return TRUE;
 }
 
+static gboolean mce_get_dbus_bool(GDBusConnection *bus, const gchar *request, gboolean defval)
+{
+	GVariant *result;
+
+	GError *error = NULL;
+
+	result = g_dbus_connection_call_sync(bus, MCE_SERVICE, MCE_REQUEST_PATH,
+		MCE_REQUEST_IF, request, NULL, NULL,
+		G_DBUS_CALL_FLAGS_NONE, 2000, NULL, &error);
+	
+	if (error || !result) {
+		g_critical("%s: Can not get value for %s", __func__, request);
+		return defval;
+	}
+
+	GVariantType *int_variant = g_variant_type_new("(b)");
+
+	if (!g_variant_is_of_type(result, int_variant)) {
+		g_critical("%s: Can not get value for %s wrong type: %s instead of (b)",
+				   __func__, request, g_variant_get_type_string(result));
+		g_variant_unref(result);
+		g_variant_type_free(int_variant);
+		return defval;
+	}
+
+	g_variant_type_free(int_variant);
+
+	gboolean value;
+	g_variant_get(result, "(b)", &value);
+	g_variant_unref(result);
+	return value;
+}
+
+static gboolean mce_set_dbus_bool(GDBusConnection *bus, const gchar *request, gboolean val)
+{
+	GVariant *result;
+	GError *error = NULL;
+
+	result = g_dbus_connection_call_sync(bus, MCE_SERVICE, MCE_REQUEST_PATH,
+		MCE_REQUEST_IF, request, g_variant_new("(b)", val), NULL,
+		G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+
+	if (error) {
+		g_critical("%s: Failed to send %s to mce", __func__, request);
+		return FALSE;
+	}
+
+	g_variant_unref(result);
+
+	return TRUE;
+}
+
 static void _brightness_level_changed(HildonControlbar* brightness_control_bar, gpointer user_data)
 {
   GDBusConnection *bus = (GDBusConnection*)user_data;
@@ -142,9 +190,6 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 							NULL);
 	GDBusConnection *s_bus = get_dbus_connection();
 	g_assert(s_bus);
-	
-	GConfClient* gconf_client = gconf_client_get_default();
-	g_assert(GCONF_IS_CLIENT(gconf_client));
 
 	GtkWidget *pan = hildon_pannable_area_new();
 	GtkWidget *box = gtk_vbox_new(FALSE, 0);
@@ -181,7 +226,7 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 	//		     dgettext("osso-display", "disp_fi_power_save_mode"));
 
 	hildon_check_button_set_active(HILDON_CHECK_BUTTON(touchscreen_keypad_autolock_check_button),
-				       gconf_client_get_bool(gconf_client, GCONF_KEY_TOUCHSCREEN_AUTOLCOK, NULL));
+				       mce_get_dbus_bool(s_bus, MCE_AUTOLOCK_GET, FALSE));
 	hildon_check_button_set_active(HILDON_CHECK_BUTTON(inhibit_blank_mode_check_button),
 				       mce_get_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_MODE_GET, 0));
 	//hildon_check_button_set_active(HILDON_CHECK_BUTTON(power_saving_check_button),
@@ -192,30 +237,25 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 	hildon_controlbar_set_value(HILDON_CONTROLBAR(brightness_control_bar), current_brightness);
 
 	int timeout =  mce_get_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_GET, 0);
-	GSList *timeouts = gconf_client_get_list(gconf_client, GCONF_KEY_DIM_TIMEOUTS, GCONF_VALUE_INT, NULL);
-	if (timeouts) {
-		GSList *item = timeouts;
-		int index = 0;
-		while (item) {
-			int value = GPOINTER_TO_INT(item->data);
-			gchar *list_text = NULL;
-			if (value < 60) {
-				const gchar *text =
-				    dngettext("osso-display", "disp_va_gene_0", "disp_va_gene_1", value);
-				list_text = g_strdup_printf(text, value);
-			} else {
-				int min_value = (int)(value / 60);
-				const gchar *text =
-				    dngettext("osso-display", "disp_va_do_2", "disp_va_gene_2", min_value);
-				list_text = g_strdup_printf(text, min_value);
-			}
-			hildon_touch_selector_append_text(HILDON_TOUCH_SELECTOR(dim_timeout_selector), list_text);
-			if (value == timeout)
-				hildon_touch_selector_set_active(HILDON_TOUCH_SELECTOR(dim_timeout_selector), 0, index);
-			g_free(list_text);
-			item = item->next;
-			index++;
+	const int timeouts[] = MCE_DISPLAY_TIMEOUT_LEVELS;
+	
+	for(size_t index = 0; timeouts[index] >= 0; ++index) {
+		int value = timeouts[index];
+		gchar *list_text = NULL;
+		if (value < 60) {
+			const gchar *text =
+				dngettext("osso-display", "disp_va_gene_0", "disp_va_gene_1", value);
+			list_text = g_strdup_printf(text, value);
+		} else {
+			int min_value = (int)(value / 60);
+			const gchar *text =
+				dngettext("osso-display", "disp_va_do_2", "disp_va_gene_2", min_value);
+			list_text = g_strdup_printf(text, min_value);
 		}
+		hildon_touch_selector_append_text(HILDON_TOUCH_SELECTOR(dim_timeout_selector), list_text);
+		if (value == timeout)
+			hildon_touch_selector_set_active(HILDON_TOUCH_SELECTOR(dim_timeout_selector), 0, index);
+		g_free(list_text);
 	}
 
 	gtk_box_pack_start(GTK_BOX(brightness_box), brightness_label, TRUE, TRUE, 2 * HILDON_MARGIN_DEFAULT);
@@ -242,10 +282,9 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 	guint response = gtk_dialog_run(GTK_DIALOG(dialog));
 
 	if (response == GTK_RESPONSE_ACCEPT) {
-		gconf_client_set_bool(gconf_client,
-				      GCONF_KEY_TOUCHSCREEN_AUTOLCOK,
-				      hildon_check_button_get_active(HILDON_CHECK_BUTTON
-								     (touchscreen_keypad_autolock_check_button)), NULL);
+		mce_set_dbus_bool(s_bus,
+				      MCE_AUTOLOCK_SET,
+				      hildon_check_button_get_active(HILDON_CHECK_BUTTON(touchscreen_keypad_autolock_check_button)));
 		mce_set_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_MODE_SET,
 						 hildon_check_button_get_active(HILDON_CHECK_BUTTON(inhibit_blank_mode_check_button)));
 		//gconf_client_set_bool(gconf_client, GCONF_KEY_POWER_SAVING,
@@ -254,19 +293,13 @@ osso_return_t execute(osso_context_t *osso, gpointer user_data, gboolean user_ac
 
 		int active_dim_timeout_index =
 		    hildon_touch_selector_get_active(HILDON_TOUCH_SELECTOR(dim_timeout_selector), 0);
-		GSList *active_item = g_slist_nth(timeouts, active_dim_timeout_index);
-		if (active_item) {
-			int value = GPOINTER_TO_INT(active_item->data);
-			mce_set_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_SET, value);
-		}
+		if (active_dim_timeout_index < sizeof(timeouts)/sizeof(*timeouts) && active_dim_timeout_index > 0)
+			mce_set_dbus_int(s_bus, MCE_DISPLAY_TIMEOUT_SET, timeouts[active_dim_timeout_index]);
 	} else {
 		if (hildon_controlbar_get_value(HILDON_CONTROLBAR(brightness_control_bar)) != current_brightness)
 			mce_set_dbus_int(s_bus, MCE_DISPLAY_BRIGTNESS_SET, current_brightness);
 	}
-	if (timeouts)
-		g_slist_free(timeouts);
 	gtk_widget_destroy(dialog);
-	g_object_unref(gconf_client);
 	g_object_unref(s_bus);
 	return OSSO_OK;
 }
