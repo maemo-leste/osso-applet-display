@@ -14,8 +14,6 @@ install: all
 	install -d $(DESTDIR)/$(HILDON_CONTROL_PANEL_LIB_DIR)
 	install -m 644 $(BUILDDIR)/$(CP_LIB) $(DESTDIR)/$(HILDON_CONTROL_PANEL_LIB_DIR)
 	install -d $(DESTDIR)/$(CONTROL_PANEL_IMAGE_PATH)
-	install -d $(DESTDIR)/usr/share/gconf/schemas
-	install -m 644 schemas/RX-51.schemas $(DESTDIR)/usr/share/gconf/schemas/osso-applet-display.schemas
 subdirs: $(SUBDIRS)
 
 $(SUBDIRS):
